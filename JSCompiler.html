@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JS Compiler</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: #1a1d27;
+      border-bottom: 1px solid #2d3148;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 30px; height: 30px;
+      background: #1D9E75;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: #fff;
+    }
+
+    .brand-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f1f5f9;
+      letter-spacing: -0.3px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-tab {
+      font-size: 13px;
+      color: #94a3b8;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 6px;
+      padding: 4px 12px;
+    }
+
+    .btn {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 16px;
+      border-radius: 7px;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.87; }
+    .btn:active { transform: scale(0.97); }
+    .btn-run {
+      background: #1D9E75;
+      color: #fff;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-clear {
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #2d3148;
+    }
+
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .editor-pane { flex: 1.3; border-right: 1px solid #2d3148; }
+    .output-pane { flex: 1; }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: #1a1d27;
+      border-bottom: 1px solid #2d3148;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .pane-header .dots {
+      display: flex; gap: 5px;
+    }
+    .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+    }
+    .dot-r { background: #E24B4A; }
+    .dot-y { background: #EF9F27; }
+    .dot-g { background: #639922; }
+
+    .shortcut {
+      font-size: 11px;
+      color: #475569;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    .CodeMirror {
+      font-size: 14px;
+      height: 100% !important;
+      font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+      background: #282a36 !important;
+      flex: 1;
+    }
+    .CodeMirror-scroll { padding-bottom: 20px; }
+    .cm-wrap { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+    .output-body {
+      flex: 1;
+      padding: 14px 16px;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      overflow-y: auto;
+      background: #0f1117;
+      line-height: 1.8;
+    }
+
+    .log-line { word-break: break-all; padding: 1px 0; }
+    .log-line.error  { color: #f87171; }
+    .log-line.warn   { color: #fbbf24; }
+    .log-line.info   { color: #60a5fa; }
+    .log-line.result { color: #34d399; font-style: italic; }
+    .log-line.plain  { color: #e2e8f0; }
+
+    .placeholder {
+      color: #475569;
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 16px;
+      background: #1D9E75;
+      font-size: 11px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .main { flex-direction: column; }
+      .editor-pane { border-right: none; border-bottom: 1px solid #2d3148; flex: none; height: 55vh; }
+      .output-pane { flex: none; height: 35vh; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">JS</div>
+    <span class="brand-name">JS Compiler</span>
+  </div>
+  <div class="header-right">
+    <span class="file-tab">script.js</span>
+    <button class="btn btn-clear" onclick="clearOutput()">Clear</button>
+    <button class="btn btn-run" onclick="runCode()">
+      <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><path d="M0 0l10 6-10 6z"/></svg>
+      Run
+    </button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="pane editor-pane">
+    <div class="pane-header">
+      <div class="dots">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <span>editor</span>
+      <span class="shortcut">Ctrl + Enter</span>
+    </div>
+    <textarea id="editor">// Welcome! Write your JavaScript here 🚀
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greet("World"));
+
+// Try arrays and loops
+const nums = [1, 2, 3, 4, 5];
+const doubled = nums.map(n => n * 2);
+console.log("Doubled:", doubled);
+
+// Objects
+const person = { name: "Alice", age: 25, city: "NYC" };
+console.log("Person:", person);
+</textarea>
+  </div>
+
+  <div class="pane output-pane">
+    <div class="pane-header">
+      <span>console output</span>
+      <span id="run-status" style="color: #34d399; font-size: 11px;"></span>
+    </div>
+    <div class="output-body" id="output">
+      <span class="placeholder">Hit Run (or Ctrl+Enter) to execute your code...</span>
+    </div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span>JavaScript ES6+</span>
+  <span id="status-msg">Ready</span>
+</div>
+
+<script>
+  var editor;
+
+  window.addEventListener('load', function () {
+    editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+      mode: 'javascript',
+      theme: 'dracula',
+      lineNumbers: true,
+      indentUnit: 2,
+      tabSize: 2,
+      indentWithTabs: false,
+      lineWrapping: true,
+      autofocus: true,
+      extraKeys: {
+        "Ctrl-Enter": runCode,
+        "Cmd-Enter": runCode
+      }
+    });
+
+    var cmWrapper = editor.getWrapperElement();
+    cmWrapper.style.flex = "1";
+    cmWrapper.style.overflow = "hidden";
+    cmWrapper.style.display = "flex";
+    cmWrapper.style.flexDirection = "column";
+    var scroll = cmWrapper.querySelector('.CodeMirror-scroll');
+    if (scroll) scroll.style.flex = "1";
+  });
+
+  function formatVal(v) {
+    if (v === null) return 'null';
+    if (v === undefined) return 'undefined';
+    if (typeof v === 'function') return v.toString();
+    if (typeof v === 'object') {
+      try { return JSON.stringify(v, null, 2); } catch (e) { return String(v); }
+    }
+    return String(v);
+  }
+
+  function appendLine(text, cls) {
+    var out = document.getElementById('output');
+    var el = document.createElement('div');
+    el.className = 'log-line ' + (cls || 'plain');
+    el.textContent = text;
+    out.appendChild(el);
+    out.scrollTop = out.scrollHeight;
+  }
+
+  function clearOutput() {
+    document.getElementById('output').innerHTML = '<span class="placeholder">Hit Run (or Ctrl+Enter) to execute your code...</span>';
+    document.getElementById('run-status').textContent = '';
+    document.getElementById('status-msg').textContent = 'Ready';
+  }
+
+  function runCode() {
+    var out = document.getElementById('output');
+    out.innerHTML = '';
+
+    var origLog   = console.log;
+    var origWarn  = console.warn;
+    var origError = console.error;
+    var origInfo  = console.info;
+
+    console.log = function () {
+      appendLine(Array.from(arguments).map(formatVal).join(' '), 'plain');
+      origLog.apply(console, arguments);
+    };
+    console.warn = function () {
+      appendLine('⚠  ' + Array.from(arguments).map(formatVal).join(' '), 'warn');
+      origWarn.apply(console, arguments);
+    };
+    console.error = function () {
+      appendLine('✕  ' + Array.from(arguments).map(formatVal).join(' '), 'error');
+      origError.apply(console, arguments);
+    };
+    console.info = function () {
+      appendLine('ℹ  ' + Array.from(arguments).map(formatVal).join(' '), 'info');
+      origInfo.apply(console, arguments);
+    };
+
+    var code = editor ? editor.getValue() : document.getElementById('editor').value;
+    var start = performance.now();
+
+    try {
+      var result = (new Function(code))();
+      var ms = (performance.now() - start).toFixed(1);
+      if (result !== undefined) {
+        appendLine('→ ' + formatVal(result), 'result');
+      }
+      if (out.children.length === 0) {
+        appendLine('✓ Ran with no output', 'result');
+      }
+      document.getElementById('run-status').textContent = '✓ ' + ms + 'ms';
+      document.getElementById('status-msg').textContent = 'Executed in ' + ms + 'ms';
+    } catch (e) {
+      appendLine('✕  ' + e.name + ': ' + e.message, 'error');
+      document.getElementById('run-status').textContent = '✕ Error';
+      document.getElementById('status-msg').textContent = 'Error';
+    } finally {
+      console.log   = origLog;
+      console.warn  = origWarn;
+      console.error = origError;
+      console.info  = origInfo;
+    }
+  }
+</script>
+</body>
+</html>
