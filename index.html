@@ -3,28 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>JS Compiler - Online JavaScript Code Editor and Runner</title>
-  <meta name="description" content="Free online JavaScript compiler and code runner. Write, test, and debug JS code in your browser with syntax highlighting, console output, and ES6+ support.">
-  <meta name="keywords" content="javascript, js compiler, online code editor, javascript runner, code playground, js debugger, web development tool">
-  <meta name="author" content="NavaneethReddi">
-  <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://your-vercel-url.vercel.app/"> <!-- Replace with your actual Vercel URL -->
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://your-vercel-url.vercel.app/">
-  <meta property="og:title" content="JS Compiler - Online JavaScript Code Editor and Runner">
-  <meta property="og:description" content="Free online JavaScript compiler and code runner. Write, test, and debug JS code in your browser with syntax highlighting, console output, and ES6+ support.">
-  <meta property="og:image" content="https://your-vercel-url.vercel.app/og-image.png"> <!-- Add an og-image if available -->
-  <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://your-vercel-url.vercel.app/">
-  <meta property="twitter:title" content="JS Compiler - Online JavaScript Code Editor and Runner">
-  <meta property="twitter:description" content="Free online JavaScript compiler and code runner. Write, test, and debug JS code in your browser with syntax highlighting, console output, and ES6+ support.">
-  <meta property="twitter:image" content="https://your-vercel-url.vercel.app/og-image.png"> <!-- Add an og-image if available -->
+  <title>JS Compiler</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/javascript-hint.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -204,6 +190,27 @@
       .editor-pane { border-right: none; border-bottom: 1px solid #2d3148; flex: none; height: 55vh; }
       .output-pane { flex: none; height: 35vh; }
     }
+
+    /* Autocomplete dropdown styling */
+    .CodeMirror-hints {
+      background: #1e2030 !important;
+      border: 1px solid #3d4268 !important;
+      border-radius: 8px !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+      font-family: 'Fira Code', 'Cascadia Code', monospace !important;
+      font-size: 13px !important;
+      padding: 4px !important;
+      z-index: 9999 !important;
+    }
+    .CodeMirror-hint {
+      color: #cdd6f4 !important;
+      padding: 4px 12px !important;
+      border-radius: 5px !important;
+    }
+    .CodeMirror-hint-active {
+      background: #1D9E75 !important;
+      color: #fff !important;
+    }
   </style>
 </head>
 <body>
@@ -281,9 +288,33 @@ console.log("Person:", person);
       indentWithTabs: false,
       lineWrapping: true,
       autofocus: true,
+      hintOptions: {
+        completeSingle: false,
+        alignWithWord: true,
+        closeOnUnfocus: true
+      },
       extraKeys: {
         "Ctrl-Enter": runCode,
-        "Cmd-Enter": runCode
+        "Cmd-Enter": runCode,
+        "Ctrl-Space": function(cm) { cm.showHint(); }
+      }
+    });
+
+    // Auto-trigger hint on every keypress (letter/dot/underscore)
+    editor.on('keyup', function (cm, event) {
+      var noHintKeys = [
+        'Enter','Escape','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+        'Shift','Control','Alt','Meta','Backspace','Delete','Home','End',
+        'PageUp','PageDown','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'
+      ];
+      if (noHintKeys.indexOf(event.key) !== -1) return;
+      if (!cm.state.completionActive) {
+        var cur = cm.getCursor();
+        var token = cm.getTokenAt(cur);
+        // Only suggest if typing a word (at least 1 char) or after a dot
+        if (token.type === 'variable' || token.type === 'property' || token.string === '.') {
+          cm.showHint({ hint: CodeMirror.hint.javascript, completeSingle: false });
+        }
       }
     });
 
